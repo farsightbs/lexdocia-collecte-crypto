@@ -20,14 +20,17 @@ Aucune primitive cryptographique "maison" : uniquement libsodium (symétrique + 
 En dépendance git directe (pas de registre npm) :
 
 ```json
-"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.0.2"
+"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.0.3"
 ```
 
-`dist/` est **committé** dans ce repo (exception volontaire à la convention habituelle) :
-npm ≥ 11.17 bloque par défaut le script `prepare` d'une dépendance tierce (gate
-`allow-scripts`, cf. `npm approve-scripts`), donc compter sur `prepare` pour construire
-`dist/` chez le consommateur n'est pas fiable. Committer le build évite ce problème quel que
-soit le gestionnaire de paquets ou sa version.
+`dist/` est **committé** dans ce repo (exception volontaire à la convention habituelle), et
+il n'y a **pas** de script `prepare`/`postinstall` : npm ≥ 11.17 bloque par défaut le
+`prepare` d'une dépendance tierce (gate `allow-scripts`) et pnpm bloque carrément
+l'installation d'une dépendance git avec un script de build tant qu'elle n'est pas dans
+`allowBuilds` (et la clé qu'il demande est qualifiée par le hash de commit résolu — elle
+changerait à chaque bump de version). Ne compter sur aucun script de build à l'installation
+et committer `dist/` directement évite les deux problèmes, quel que soit le gestionnaire de
+paquets ou sa version.
 
 ## Développement
 

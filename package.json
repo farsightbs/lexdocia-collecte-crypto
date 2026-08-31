@@ -1,6 +1,6 @@
 {
   "name": "@lexdocia/collecte-crypto",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "description": "Primitives de chiffrement hybride (X25519 + ML-KEM-768 + XChaCha20-Poly1305) partagées entre le portail lexdocia-collect (chiffrement) et PieceMaster (déchiffrement).",
   "license": "UNLICENSED",
@@ -10,7 +10,6 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/",
     "test": "vitest run"
