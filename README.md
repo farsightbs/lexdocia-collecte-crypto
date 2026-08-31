@@ -20,11 +20,14 @@ Aucune primitive cryptographique "maison" : uniquement libsodium (symétrique + 
 En dépendance git directe (pas de registre npm) :
 
 ```json
-"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.0.1"
+"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.0.2"
 ```
 
-Le script `prepare` construit `dist/` automatiquement à l'installation (npm et pnpm
-l'exécutent tous les deux pour une dépendance git).
+`dist/` est **committé** dans ce repo (exception volontaire à la convention habituelle) :
+npm ≥ 11.17 bloque par défaut le script `prepare` d'une dépendance tierce (gate
+`allow-scripts`, cf. `npm approve-scripts`), donc compter sur `prepare` pour construire
+`dist/` chez le consommateur n'est pas fiable. Committer le build évite ce problème quel que
+soit le gestionnaire de paquets ou sa version.
 
 ## Développement
 
@@ -33,3 +36,8 @@ npm install
 npm run build
 npm test
 ```
+
+Après une modification de `src/` : `npm run build`, committer `src/` **et** `dist/`
+ensemble, bump la version dans `package.json`, tag (`git tag vX.Y.Z && git push --tags`) —
+puis mettre à jour la référence `#vX.Y.Z` dans les deux consommateurs
+(`lexdocia-collect/apps/{api,portail}/package.json`, `piecemaster/package.json`).
