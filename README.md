@@ -20,7 +20,7 @@ Aucune primitive cryptographique "maison" : uniquement libsodium (symétrique + 
 En dépendance git directe (pas de registre npm) :
 
 ```json
-"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.0.3"
+"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.1.1"
 ```
 
 `dist/` est **committé** dans ce repo (exception volontaire à la convention habituelle), et
