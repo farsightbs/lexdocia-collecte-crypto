@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateAvocatKeyPair } from './keys.js';
+import { getSodium } from './sodium.js';
 import { decryptFile, encryptFile } from './envelope.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 import type { AvocatKeyPair, RecipientPrivateKeys, RecipientPublicKeys } from './types.js';
@@ -56,7 +57,10 @@ describe('encryptFile / decryptFile', () => {
     const encrypted = await encryptFile(plaintext, toPublicKeys(avocat));
     const decrypted = await decryptFile(encrypted, toPrivateKeys(avocat));
 
-    expect(decrypted).toEqual(plaintext);
+    // `toEqual` itère sur 3 M d'éléments (plusieurs secondes sur un runner CI) : comparaison binaire directe.
+    const sodium = await getSodium();
+    expect(decrypted.length).toBe(plaintext.length);
+    expect(sodium.memcmp(decrypted, plaintext)).toBe(true);
   });
 
   it('produit un chiffré et une clé encapsulée différents à chaque appel (nonces/éphémères non réutilisés)', async () => {
