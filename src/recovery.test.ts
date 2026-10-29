@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateAvocatKeyPair } from './keys.js';
 import { exportRecoveryFile, importRecoveryFile, type RecoveryFile } from './recovery.js';
+import { getSodiumSumo } from './sodium-sumo.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 import type { AvocatKeyPair, RecipientPrivateKeys } from './types.js';
 
@@ -65,4 +66,86 @@ describe('exportRecoveryFile / importRecoveryFile', () => {
       InvalidEnvelopeError,
     );
   });
+
+  it('rejette un nonce altéré', async () => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+    const corrompu = { ...file, nonce: file.nonce.slice(0, -4) + 'AAAA' };
+
+    await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(DecryptionError);
+  });
+
+  it('rejette un sel altéré (autre clé dérivée)', async () => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+    const corrompu = { ...file, kdf: { ...file.kdf, salt: 'A'.repeat(file.kdf.salt.length) } };
+
+    await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(DecryptionError);
+  });
+
+  it('rejette des paramètres Argon2id modifiés (autre clé dérivée)', async () => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+    const corrompu = { ...file, kdf: { ...file.kdf, opslimit: file.kdf.opslimit + 1 } };
+
+    await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(DecryptionError);
+  });
+
+  it('rejette un ciphertext tronqué', async () => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+    const corrompu = { ...file, ciphertext: file.ciphertext.slice(0, 20) };
+
+    await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(DecryptionError);
+  });
+
+  it('rejette un contenu authentique mais de taille inattendue', async () => {
+    const sodium = await getSodiumSumo();
+    const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+    const nonce = sodium.randombytes_buf(24);
+    const key = sodium.crypto_pwhash(
+      32,
+      'mot-de-passe',
+      salt,
+      FAST_LIMITS.opslimit,
+      FAST_LIMITS.memlimit,
+      sodium.crypto_pwhash_ALG_ARGON2ID13,
+    );
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
+      new Uint8Array(10),
+      null,
+      null,
+      nonce,
+      key,
+    );
+    const file: RecoveryFile = {
+      version: 1,
+      kdf: { algo: 'argon2id', salt: sodium.to_base64(salt), ...FAST_LIMITS },
+      nonce: sodium.to_base64(nonce),
+      ciphertext: sodium.to_base64(ciphertext),
+    };
+
+    await expect(importRecoveryFile(file, 'mot-de-passe')).rejects.toThrow(InvalidEnvelopeError);
+  });
+
+  it.each(['salt', 'nonce', 'ciphertext'] as const)(
+    'rejette un base64 invalide dans %s avec une erreur typée',
+    async (champ) => {
+      const avocat = await generateAvocatKeyPair();
+      const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+      const corrompu =
+        champ === 'salt'
+          ? { ...file, kdf: { ...file.kdf, salt: '!!!' } }
+          : { ...file, [champ]: '!!!' };
+
+      await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(
+        InvalidEnvelopeError,
+      );
+    },
+  );
 });
