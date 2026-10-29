@@ -123,9 +123,16 @@ export async function importRecoveryFile(
     throw new InvalidEnvelopeError('Algorithme de dérivation de clé non supporté.');
   }
 
-  const salt = sodium.from_base64(file.kdf.salt);
-  const nonce = sodium.from_base64(file.nonce);
-  const ciphertext = sodium.from_base64(file.ciphertext);
+  let salt: Uint8Array;
+  let nonce: Uint8Array;
+  let ciphertext: Uint8Array;
+  try {
+    salt = sodium.from_base64(file.kdf.salt);
+    nonce = sodium.from_base64(file.nonce);
+    ciphertext = sodium.from_base64(file.ciphertext);
+  } catch {
+    throw new InvalidEnvelopeError('Fichier de recovery illisible : base64 invalide.');
+  }
 
   const key = await deriveKey(password, salt, {
     opslimit: file.kdf.opslimit,

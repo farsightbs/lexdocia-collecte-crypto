@@ -61,9 +61,17 @@ export async function importRecoveryFile(file, password) {
     if (file.kdf.algo !== 'argon2id') {
         throw new InvalidEnvelopeError('Algorithme de dérivation de clé non supporté.');
     }
-    const salt = sodium.from_base64(file.kdf.salt);
-    const nonce = sodium.from_base64(file.nonce);
-    const ciphertext = sodium.from_base64(file.ciphertext);
+    let salt;
+    let nonce;
+    let ciphertext;
+    try {
+        salt = sodium.from_base64(file.kdf.salt);
+        nonce = sodium.from_base64(file.nonce);
+        ciphertext = sodium.from_base64(file.ciphertext);
+    }
+    catch {
+        throw new InvalidEnvelopeError('Fichier de recovery illisible : base64 invalide.');
+    }
     const key = await deriveKey(password, salt, {
         opslimit: file.kdf.opslimit,
         memlimit: file.kdf.memlimit,

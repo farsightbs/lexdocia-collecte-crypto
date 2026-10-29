@@ -35,7 +35,14 @@ export async function hybridDecapsulate(recipient, ephemeralX25519PublicKey, mlk
     if (ephemeralX25519PublicKey.length !== X25519_SHARED_SECRET_BYTES) {
         throw new DecryptionError('Clé publique X25519 éphémère de taille invalide.');
     }
-    const x25519Shared = sodium.crypto_scalarmult(recipient.x25519PrivateKey, ephemeralX25519PublicKey);
+    let x25519Shared;
+    try {
+        x25519Shared = sodium.crypto_scalarmult(recipient.x25519PrivateKey, ephemeralX25519PublicKey);
+    }
+    catch {
+        // libsodium refuse les points d'ordre faible (résultat nul) : clé éphémère forgée ou corrompue.
+        throw new DecryptionError('Clé publique X25519 éphémère invalide.');
+    }
     let mlkemShared;
     try {
         mlkemShared = ml_kem768.decapsulate(mlkemCiphertext, recipient.mlkemPrivateKey);
