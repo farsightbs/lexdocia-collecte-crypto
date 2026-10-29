@@ -1,0 +1,8 @@
+title = "lexdocia-collecte-crypto"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Clés de test uniquement, sans valeur : vecteurs figés de compatibilité du format v1."
+paths = ['''src/compat\.test\.ts''']
