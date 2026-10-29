@@ -20,7 +20,7 @@
     "libsodium-wrappers-sumo": "^0.8.4"
   },
   "devDependencies": {
-    "oxlint": "^1.58.0",
+    "oxlint": "^1.89.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.2"
   }
