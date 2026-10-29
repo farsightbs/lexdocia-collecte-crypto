@@ -148,4 +148,32 @@ describe('exportRecoveryFile / importRecoveryFile', () => {
       );
     },
   );
+
+  it.each([
+    ['sel vide', { salt: '' }],
+    ['nonce de taille invalide', { nonce: 'AAAA' }],
+  ] as const)('rejette un fichier avec un %s avec une erreur typée', async (_nom, champ) => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+    const corrompu =
+      'salt' in champ
+        ? { ...file, kdf: { ...file.kdf, salt: champ.salt } }
+        : { ...file, nonce: champ.nonce };
+
+    await expect(importRecoveryFile(corrompu, 'mot-de-passe')).rejects.toThrow(InvalidEnvelopeError);
+  });
+
+  it.each([
+    ['memlimit démesuré', { memlimit: 2 ** 40 }],
+    ['opslimit démesuré', { opslimit: 2 ** 31 }],
+    ['opslimit nul', { opslimit: 0 }],
+    ['memlimit non entier', { memlimit: 8192.5 }],
+  ] as const)('rejette des paramètres Argon2id hors limites (%s) sans calcul', async (_nom, kdf) => {
+    const avocat = await generateAvocatKeyPair();
+    const file = await exportRecoveryFile(toPrivateKeys(avocat), 'mot-de-passe', FAST_LIMITS);
+
+    await expect(
+      importRecoveryFile({ ...file, kdf: { ...file.kdf, ...kdf } }, 'mot-de-passe'),
+    ).rejects.toThrow(InvalidEnvelopeError);
+  });
 });

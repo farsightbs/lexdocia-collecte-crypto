@@ -72,10 +72,24 @@ export async function importRecoveryFile(file, password) {
     catch {
         throw new InvalidEnvelopeError('Fichier de recovery illisible : base64 invalide.');
     }
-    const key = await deriveKey(password, salt, {
-        opslimit: file.kdf.opslimit,
-        memlimit: file.kdf.memlimit,
-    });
+    if (salt.length !== sodium.crypto_pwhash_SALTBYTES) {
+        throw new InvalidEnvelopeError('Fichier de recovery illisible : sel de taille invalide.');
+    }
+    if (nonce.length !== XCHACHA20POLY1305_NONCE_BYTES) {
+        throw new InvalidEnvelopeError('Fichier de recovery illisible : nonce de taille invalide.');
+    }
+    // Les paramètres viennent du fichier : on les borne pour qu'un fichier forgé ne puisse pas demander
+    // des gigaoctets de mémoire (limite « sensitive » = ce que `exportRecoveryFile` produit au maximum).
+    const { opslimit, memlimit } = file.kdf;
+    if (!Number.isInteger(opslimit) ||
+        !Number.isInteger(memlimit) ||
+        opslimit < 1 ||
+        memlimit < 8192 ||
+        opslimit > sodium.crypto_pwhash_OPSLIMIT_SENSITIVE ||
+        memlimit > sodium.crypto_pwhash_MEMLIMIT_SENSITIVE) {
+        throw new InvalidEnvelopeError('Fichier de recovery illisible : paramètres Argon2id hors limites.');
+    }
+    const key = await deriveKey(password, salt, { opslimit, memlimit });
     let plaintext;
     try {
         plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, null, nonce, key);
