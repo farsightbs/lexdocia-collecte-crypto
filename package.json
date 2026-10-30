@@ -1,6 +1,6 @@
 {
   "name": "@lexdocia/collecte-crypto",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Primitives de chiffrement hybride (X-Wing = X25519 + ML-KEM-768, puis XChaCha20-Poly1305) partagées entre le portail lexdocia-collect (chiffrement) et PieceMaster (déchiffrement).",
   "license": "UNLICENSED",

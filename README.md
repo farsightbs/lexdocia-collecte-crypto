@@ -33,7 +33,7 @@ ce package ne recompose rien.
 En dépendance git directe (pas de registre npm) :
 
 ```json
-"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.2.0"
+"@lexdocia/collecte-crypto": "github:farsightbs/lexdocia-collecte-crypto#v0.2.1"
 ```
 
 `dist/` est **committé** dans ce repo (exception volontaire à la convention habituelle), et
