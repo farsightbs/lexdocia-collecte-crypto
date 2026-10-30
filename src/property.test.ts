@@ -4,7 +4,11 @@ import { generateAvocatKeyPair } from './keys.js';
 import { decryptFile, encryptFile } from './envelope.js';
 import { SEALED_PRIVATE_KEYS_LENGTH, openPrivateKeys, sealPrivateKeys } from './client-keys.js';
 import { exportRecoveryFile, importRecoveryFile, type RecoveryFile } from './recovery.js';
-import { ENCAPSULATED_KEY_LENGTH, XCHACHA20POLY1305_NONCE_BYTES } from './constants.js';
+import {
+  ENCAPSULATED_KEY_LENGTH,
+  XCHACHA20POLY1305_NONCE_BYTES,
+  XWING_CIPHERTEXT_BYTES,
+} from './constants.js';
 import { CollecteCryptoError } from './errors.js';
 import type { AvocatKeyPair, RecipientPrivateKeys, RecipientPublicKeys } from './types.js';
 
@@ -83,6 +87,22 @@ describe('propriétés du chiffrement de fichier', () => {
       ),
       { numRuns: 300 },
     );
+  });
+
+  it("aucun bit de la partie X25519 du chiffré X-Wing n'est malléable", async () => {
+    // X25519 ignore le bit de poids fort de la coordonnée u (RFC 7748 §5) : avec l'ancien hybride maison, retourner ce
+    // bit laissait le déchiffrement réussir (échec aléatoire du test de propriété ci-dessus, ~1 % des exécutions).
+    // X-Wing inclut ct_X25519 dans le combineur, donc tout bit modifié change le secret : on le vérifie exhaustivement.
+    const chiffre = await encryptFile(new TextEncoder().encode('contenu'), publiques);
+    const debutX25519 = 1 + XWING_CIPHERTEXT_BYTES - 32;
+    for (let i = debutX25519; i < debutX25519 + 32; i++) {
+      for (let bit = 0; bit < 8; bit++) {
+        const altere = new Uint8Array(chiffre.encapsulatedKey);
+        altere[i] = altere[i]! ^ (1 << bit);
+        const paquet = { ...chiffre, encapsulatedKey: altere };
+        expect(await rejetteProprement(decryptFile(paquet, privees))).toBe(true);
+      }
+    }
   });
 
   it('jamais deux chiffrements identiques ni de nonce réutilisé sur 500 appels', async () => {
