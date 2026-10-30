@@ -1,10 +1,23 @@
 import { getSodium } from './sodium.js';
-import { hybridDecapsulate, hybridEncapsulate } from './hybrid-kem.js';
-import { ENCAPSULATED_KEY_LENGTH, FILE_KEY_BYTES, FORMAT_VERSION, MLKEM768_CIPHERTEXT_BYTES, X25519_PUBLIC_KEY_BYTES, XCHACHA20POLY1305_NONCE_BYTES, XCHACHA20POLY1305_TAG_BYTES, } from './constants.js';
+import { xwingDecapsulate, xwingEncapsulate } from './hybrid-kem.js';
+import { ENCAPSULATED_KEY_LENGTH, FILE_KEY_BYTES, FORMAT_VERSION, XCHACHA20POLY1305_NONCE_BYTES, XCHACHA20POLY1305_TAG_BYTES, XWING_CIPHERTEXT_BYTES, } from './constants.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 const CIPHERTEXT_HEADER_LENGTH = 1 + XCHACHA20POLY1305_NONCE_BYTES;
+const KEM_CIPHERTEXT_END = 1 + XWING_CIPHERTEXT_BYTES;
+/** Données authentifiées de l'enveloppe du fichier : l'octet de version. */
+function fileAad() {
+    return Uint8Array.of(FORMAT_VERSION);
+}
 /**
- * Chiffre un fichier pour les clés publiques d'un destinataire (spec §3.3, portail).
+ * Données authentifiées de l'enveloppe de la clé de fichier : version ‖ ciphertext X-Wing.
+ * Lie la clé enveloppée au ciphertext KEM qui l'a produite (un ciphertext échangé ou altéré
+ * fait échouer l'authentification, en plus de produire un autre secret).
+ */
+function keyAad(encapsulatedKey) {
+    return encapsulatedKey.slice(0, KEM_CIPHERTEXT_END);
+}
+/**
+ * Chiffre un fichier pour la clé publique d'un destinataire (spec §3.3, portail).
  * Retourne deux blobs distincts qui suivent le modèle de données (§4) :
  * `ciphertext` va en Object Storage (`storage_key`), `encapsulatedKey` en base
  * (`cle_fichier_encapsulee`).
@@ -13,31 +26,25 @@ export async function encryptFile(plaintext, recipient) {
     const sodium = await getSodium();
     const fileKey = sodium.randombytes_buf(FILE_KEY_BYTES);
     const fileNonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);
-    const fileCiphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, null, null, fileNonce, fileKey);
+    const fileCiphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, fileAad(), null, fileNonce, fileKey);
     const ciphertext = new Uint8Array(CIPHERTEXT_HEADER_LENGTH + fileCiphertext.length);
     ciphertext[0] = FORMAT_VERSION;
     ciphertext.set(fileNonce, 1);
     ciphertext.set(fileCiphertext, CIPHERTEXT_HEADER_LENGTH);
-    const { sharedSecret, ephemeralX25519PublicKey, mlkemCiphertext } = await hybridEncapsulate(recipient);
+    const { sharedSecret, cipherText: kemCiphertext } = xwingEncapsulate(recipient.publicKey);
+    const encapsulatedKey = new Uint8Array(ENCAPSULATED_KEY_LENGTH);
+    encapsulatedKey[0] = FORMAT_VERSION;
+    encapsulatedKey.set(kemCiphertext, 1);
     const keyNonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);
-    const wrappedFileKey = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(fileKey, null, null, keyNonce, sharedSecret);
+    const wrappedFileKey = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(fileKey, keyAad(encapsulatedKey), null, keyNonce, sharedSecret);
     sodium.memzero(fileKey);
     sodium.memzero(sharedSecret);
-    let offset = 0;
-    const encapsulatedKey = new Uint8Array(ENCAPSULATED_KEY_LENGTH);
-    encapsulatedKey[offset] = FORMAT_VERSION;
-    offset += 1;
-    encapsulatedKey.set(ephemeralX25519PublicKey, offset);
-    offset += X25519_PUBLIC_KEY_BYTES;
-    encapsulatedKey.set(mlkemCiphertext, offset);
-    offset += MLKEM768_CIPHERTEXT_BYTES;
-    encapsulatedKey.set(keyNonce, offset);
-    offset += XCHACHA20POLY1305_NONCE_BYTES;
-    encapsulatedKey.set(wrappedFileKey, offset);
+    encapsulatedKey.set(keyNonce, KEM_CIPHERTEXT_END);
+    encapsulatedKey.set(wrappedFileKey, KEM_CIPHERTEXT_END + XCHACHA20POLY1305_NONCE_BYTES);
     return { ciphertext, encapsulatedKey };
 }
 /**
- * Déchiffre un fichier avec les clés privées du destinataire (spec §3.4, PieceMaster).
+ * Déchiffre un fichier avec la clé privée du destinataire (spec §3.4, PieceMaster).
  * Toute altération (byte modifié, mauvaise clé, structure invalide) lève une erreur —
  * jamais de déchiffrement partiel silencieux.
  */
@@ -53,18 +60,13 @@ export async function decryptFile(encrypted, recipient) {
     if (encapsulatedKey[0] !== FORMAT_VERSION || ciphertext[0] !== FORMAT_VERSION) {
         throw new InvalidEnvelopeError('Version de format de chiffrement non supportée.');
     }
-    let offset = 1;
-    const ephemeralX25519PublicKey = encapsulatedKey.subarray(offset, offset + X25519_PUBLIC_KEY_BYTES);
-    offset += X25519_PUBLIC_KEY_BYTES;
-    const mlkemCiphertext = encapsulatedKey.subarray(offset, offset + MLKEM768_CIPHERTEXT_BYTES);
-    offset += MLKEM768_CIPHERTEXT_BYTES;
-    const keyNonce = encapsulatedKey.subarray(offset, offset + XCHACHA20POLY1305_NONCE_BYTES);
-    offset += XCHACHA20POLY1305_NONCE_BYTES;
-    const wrappedFileKey = encapsulatedKey.subarray(offset);
-    const sharedSecret = await hybridDecapsulate(recipient, ephemeralX25519PublicKey, mlkemCiphertext);
+    const kemCiphertext = encapsulatedKey.subarray(1, KEM_CIPHERTEXT_END);
+    const keyNonce = encapsulatedKey.subarray(KEM_CIPHERTEXT_END, KEM_CIPHERTEXT_END + XCHACHA20POLY1305_NONCE_BYTES);
+    const wrappedFileKey = encapsulatedKey.subarray(KEM_CIPHERTEXT_END + XCHACHA20POLY1305_NONCE_BYTES);
+    const sharedSecret = xwingDecapsulate(kemCiphertext, recipient.privateKey);
     let fileKey;
     try {
-        fileKey = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, wrappedFileKey, null, keyNonce, sharedSecret);
+        fileKey = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, wrappedFileKey, keyAad(encapsulatedKey), keyNonce, sharedSecret);
     }
     catch {
         throw new DecryptionError('Impossible de déchiffrer la clé de fichier encapsulée.');
@@ -75,8 +77,7 @@ export async function decryptFile(encrypted, recipient) {
     const fileNonce = ciphertext.subarray(1, CIPHERTEXT_HEADER_LENGTH);
     const fileCiphertext = ciphertext.subarray(CIPHERTEXT_HEADER_LENGTH);
     try {
-        const plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, fileCiphertext, null, fileNonce, fileKey);
-        return plaintext;
+        return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, fileCiphertext, fileAad(), fileNonce, fileKey);
     }
     catch {
         throw new DecryptionError('Impossible de déchiffrer le contenu du fichier.');

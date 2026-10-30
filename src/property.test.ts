@@ -20,8 +20,8 @@ let privees: RecipientPrivateKeys;
 
 beforeAll(async () => {
   avocat = await generateAvocatKeyPair();
-  publiques = { x25519PublicKey: avocat.x25519.publicKey, mlkemPublicKey: avocat.mlkem.publicKey };
-  privees = { x25519PrivateKey: avocat.x25519.privateKey, mlkemPrivateKey: avocat.mlkem.privateKey };
+  publiques = { publicKey: avocat.publicKey };
+  privees = { privateKey: avocat.privateKey };
 });
 
 const octets = (min: number, max: number) => fc.uint8Array({ minLength: min, maxLength: max });
@@ -157,8 +157,7 @@ describe('fuzzing : entrées arbitraires', () => {
       fc.asyncProperty(octets(32, 32), async (secret) => {
         const scelle = await sealPrivateKeys(privees, secret);
         const ouvert = await openPrivateKeys(scelle, secret);
-        expect(ouvert.x25519PrivateKey).toEqual(privees.x25519PrivateKey);
-        expect(ouvert.mlkemPrivateKey).toEqual(privees.mlkemPrivateKey);
+        expect(ouvert.privateKey).toEqual(privees.privateKey);
       }),
       { numRuns: 50 },
     );

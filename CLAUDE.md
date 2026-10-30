@@ -1,6 +1,6 @@
 # lexdocia-collecte-crypto
 
-Primitives de chiffrement hybride (X25519 + ML-KEM-768 + XChaCha20-Poly1305) partagées entre le portail `lexdocia-collect` (chiffrement navigateur) et PieceMaster (déchiffrement). Voir `README.md`.
+Primitives de chiffrement hybride (KEM X-Wing = X25519 + ML-KEM-768, puis XChaCha20-Poly1305) partagées entre le portail `lexdocia-collect` (chiffrement navigateur) et PieceMaster (déchiffrement). Voir `README.md`.
 
 ## Règles
 

@@ -16,17 +16,11 @@ function randomBytes(length: number): Uint8Array {
 }
 
 function toPublicKeys(keyPair: AvocatKeyPair): RecipientPublicKeys {
-  return {
-    x25519PublicKey: keyPair.x25519.publicKey,
-    mlkemPublicKey: keyPair.mlkem.publicKey,
-  };
+  return { publicKey: keyPair.publicKey };
 }
 
 function toPrivateKeys(keyPair: AvocatKeyPair): RecipientPrivateKeys {
-  return {
-    x25519PrivateKey: keyPair.x25519.privateKey,
-    mlkemPrivateKey: keyPair.mlkem.privateKey,
-  };
+  return { privateKey: keyPair.privateKey };
 }
 
 describe('encryptFile / decryptFile', () => {

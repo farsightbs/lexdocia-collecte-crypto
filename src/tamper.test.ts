@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { generateAvocatKeyPair } from './keys.js';
 import { decryptFile, encryptFile } from './envelope.js';
-import { hybridDecapsulate, hybridEncapsulate } from './hybrid-kem.js';
+import { xwingDecapsulate, xwingEncapsulate } from './hybrid-kem.js';
 import {
   ENCAPSULATED_KEY_LENGTH,
-  MLKEM768_CIPHERTEXT_BYTES,
-  X25519_PUBLIC_KEY_BYTES,
+  XWING_CIPHERTEXT_BYTES,
   XCHACHA20POLY1305_NONCE_BYTES,
   XCHACHA20POLY1305_TAG_BYTES,
 } from './constants.js';
@@ -13,22 +12,21 @@ import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 import type { AvocatKeyPair, EncryptedFile, RecipientPrivateKeys, RecipientPublicKeys } from './types.js';
 
 function toPublicKeys(keyPair: AvocatKeyPair): RecipientPublicKeys {
-  return { x25519PublicKey: keyPair.x25519.publicKey, mlkemPublicKey: keyPair.mlkem.publicKey };
+  return { publicKey: keyPair.publicKey };
 }
 
 function toPrivateKeys(keyPair: AvocatKeyPair): RecipientPrivateKeys {
-  return { x25519PrivateKey: keyPair.x25519.privateKey, mlkemPrivateKey: keyPair.mlkem.privateKey };
+  return { privateKey: keyPair.privateKey };
 }
 
 const CIPHERTEXT_HEADER_LENGTH = 1 + XCHACHA20POLY1305_NONCE_BYTES;
 
 /** Début de chaque zone de la clé encapsulée (cf. layout dans `constants.ts`). */
 const ZONES_CLE_ENCAPSULEE = {
-  'clé X25519 éphémère': 1,
-  'ciphertext ML-KEM': 1 + X25519_PUBLIC_KEY_BYTES,
-  'nonce de la clé enveloppée': 1 + X25519_PUBLIC_KEY_BYTES + MLKEM768_CIPHERTEXT_BYTES,
-  'clé de fichier enveloppée':
-    1 + X25519_PUBLIC_KEY_BYTES + MLKEM768_CIPHERTEXT_BYTES + XCHACHA20POLY1305_NONCE_BYTES,
+  'ciphertext ML-KEM (début du ciphertext X-Wing)': 1,
+  'clé X25519 éphémère (fin du ciphertext X-Wing)': 1 + XWING_CIPHERTEXT_BYTES - 32,
+  'nonce de la clé enveloppée': 1 + XWING_CIPHERTEXT_BYTES,
+  'clé de fichier enveloppée': 1 + XWING_CIPHERTEXT_BYTES + XCHACHA20POLY1305_NONCE_BYTES,
 };
 
 async function chiffrer(contenu = 'contenu à protéger') {
@@ -186,67 +184,67 @@ describe('mélange de pièces entre deux chiffrements', () => {
   });
 });
 
-describe('chiffrement hybride : une seule moitié correcte ne suffit pas', () => {
-  it('rejette la bonne clé X25519 avec la mauvaise clé ML-KEM', async () => {
-    const { avocat, encrypted } = await chiffrer();
+describe('clé privée incorrecte', () => {
+  it("rejette la clé privée d'un autre destinataire", async () => {
+    const { encrypted } = await chiffrer();
     const autre = await generateAvocatKeyPair();
 
-    await expect(
-      decryptFile(encrypted, {
-        x25519PrivateKey: avocat.x25519.privateKey,
-        mlkemPrivateKey: autre.mlkem.privateKey,
-      }),
-    ).rejects.toBeInstanceOf(DecryptionError);
+    await expect(decryptFile(encrypted, toPrivateKeys(autre))).rejects.toBeInstanceOf(
+      DecryptionError,
+    );
   });
 
-  it('rejette la mauvaise clé X25519 avec la bonne clé ML-KEM', async () => {
-    const { avocat, encrypted } = await chiffrer();
-    const autre = await generateAvocatKeyPair();
+  it('rejette une clé privée de taille invalide avec une erreur typée', async () => {
+    const { encrypted } = await chiffrer();
 
-    await expect(
-      decryptFile(encrypted, {
-        x25519PrivateKey: autre.x25519.privateKey,
-        mlkemPrivateKey: avocat.mlkem.privateKey,
-      }),
-    ).rejects.toBeInstanceOf(DecryptionError);
+    await expect(decryptFile(encrypted, { privateKey: new Uint8Array(31) })).rejects.toBeInstanceOf(
+      InvalidEnvelopeError,
+    );
   });
 });
 
-describe('hybridDecapsulate : entrées forgées', () => {
-  it('rejette une clé éphémère X25519 de taille invalide', async () => {
-    const avocat = await generateAvocatKeyPair();
-    const { mlkemCiphertext } = await hybridEncapsulate(toPublicKeys(avocat));
-
+describe('chiffrement : clé publique invalide', () => {
+  it('rejette une clé publique de taille invalide', async () => {
     await expect(
-      hybridDecapsulate(toPrivateKeys(avocat), new Uint8Array(31), mlkemCiphertext),
-    ).rejects.toBeInstanceOf(DecryptionError);
+      encryptFile(new Uint8Array(1), { publicKey: new Uint8Array(1184) }),
+    ).rejects.toBeInstanceOf(InvalidEnvelopeError);
+  });
+});
+
+describe('xwingDecapsulate : entrées forgées', () => {
+  it('rejette un ciphertext de taille invalide', async () => {
+    const avocat = await generateAvocatKeyPair();
+
+    expect(() => xwingDecapsulate(new Uint8Array(10), avocat.privateKey)).toThrow(DecryptionError);
   });
 
-  it("rejette une clé éphémère X25519 nulle (point d'ordre faible) avec une erreur typée", async () => {
+  it('un ciphertext altéré ne donne pas le secret légitime (rejet implicite ML-KEM)', async () => {
     const avocat = await generateAvocatKeyPair();
-    const { mlkemCiphertext } = await hybridEncapsulate(toPublicKeys(avocat));
+    const { cipherText, sharedSecret } = xwingEncapsulate(avocat.publicKey);
+    const altere = avecOctetInverse(cipherText, 10);
 
-    await expect(
-      hybridDecapsulate(toPrivateKeys(avocat), new Uint8Array(32), mlkemCiphertext),
-    ).rejects.toBeInstanceOf(DecryptionError);
+    expect(xwingDecapsulate(altere, avocat.privateKey)).not.toEqual(sharedSecret);
   });
 
-  it('rejette via decryptFile une clé encapsulée dont la clé éphémère est nulle', async () => {
+  it('rejette via decryptFile une partie X25519 du ciphertext mise à zéro', async () => {
     const { avocat, encrypted } = await chiffrer();
     const forge = new Uint8Array(encrypted.encapsulatedKey);
-    forge.fill(0, 1, 1 + X25519_PUBLIC_KEY_BYTES);
+    forge.fill(0, 1 + XWING_CIPHERTEXT_BYTES - 32, 1 + XWING_CIPHERTEXT_BYTES);
 
     await expect(
       decryptFile({ ...encrypted, encapsulatedKey: forge }, toPrivateKeys(avocat)),
     ).rejects.toBeInstanceOf(DecryptionError);
   });
+});
 
-  it('rejette un ciphertext ML-KEM de taille invalide', async () => {
-    const avocat = await generateAvocatKeyPair();
-    const { ephemeralX25519PublicKey } = await hybridEncapsulate(toPublicKeys(avocat));
+describe('format v1 abandonné', () => {
+  it('rejette une enveloppe marquée version 1', async () => {
+    const { avocat, encrypted } = await chiffrer();
+    const v1 = new Uint8Array(encrypted.encapsulatedKey);
+    v1[0] = 1;
 
     await expect(
-      hybridDecapsulate(toPrivateKeys(avocat), ephemeralX25519PublicKey, new Uint8Array(10)),
-    ).rejects.toBeInstanceOf(DecryptionError);
+      decryptFile({ ...encrypted, encapsulatedKey: v1 }, toPrivateKeys(avocat)),
+    ).rejects.toBeInstanceOf(InvalidEnvelopeError);
   });
 });

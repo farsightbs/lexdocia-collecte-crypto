@@ -1,10 +1,13 @@
-import type { RecipientPrivateKeys, RecipientPublicKeys } from './types.js';
-export interface HybridEncapsulation {
+/**
+ * KEM hybride X-Wing (X25519 + ML-KEM-768), tel que spécifié par draft-connolly-cfrg-xwing-kem :
+ * le combineur (SHA3-256 sur les deux secrets, le ciphertext X25519 et la clé publique X25519)
+ * est celui de la librairie, testé contre les vecteurs du draft — rien n'est recomposé ici.
+ */
+export interface XWingEncapsulation {
     sharedSecret: Uint8Array;
-    ephemeralX25519PublicKey: Uint8Array;
-    mlkemCiphertext: Uint8Array;
+    cipherText: Uint8Array;
 }
-/** Chiffrement (portail) : encapsule un secret partagé pour les clés publiques du destinataire. */
-export declare function hybridEncapsulate(recipient: RecipientPublicKeys): Promise<HybridEncapsulation>;
-/** Déchiffrement (PieceMaster) : reconstitue le secret partagé à partir des clés privées. */
-export declare function hybridDecapsulate(recipient: RecipientPrivateKeys, ephemeralX25519PublicKey: Uint8Array, mlkemCiphertext: Uint8Array): Promise<Uint8Array>;
+/** Chiffrement (portail) : encapsule un secret partagé pour la clé publique du destinataire. */
+export declare function xwingEncapsulate(publicKey: Uint8Array): XWingEncapsulation;
+/** Déchiffrement (PieceMaster) : reconstitue le secret partagé à partir de la clé privée. */
+export declare function xwingDecapsulate(cipherText: Uint8Array, privateKey: Uint8Array): Uint8Array;

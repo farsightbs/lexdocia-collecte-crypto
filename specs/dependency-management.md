@@ -21,7 +21,7 @@ node scripts/check-licenses.mjs            # must pass (also runs in CI)
 
 ## Cryptography constraints
 
-- No home-made primitive. Audited libraries only: libsodium (symmetric + X25519), ML-KEM-768 (FIPS 203) implementation.
+- No home-made primitive. Audited libraries only: libsodium (symmetric), `@noble/post-quantum` (X-Wing hybrid KEM: ML-KEM-768 FIPS 203 + X25519).
 - Any new or swapped crypto library needs explicit sign-off, a recorded audit status, and a new tag + `dist/` rebuild.
 - After a release, update the `#vX.Y.Z` reference in `lexdocia-collect` (api, portail) and `piecemaster`, and their inventories.
 

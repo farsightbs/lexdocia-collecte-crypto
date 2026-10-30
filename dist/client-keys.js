@@ -1,17 +1,17 @@
 import { getSodium } from './sodium.js';
-import { FORMAT_VERSION, MLKEM768_SECRET_KEY_BYTES, X25519_PRIVATE_KEY_BYTES, XCHACHA20POLY1305_NONCE_BYTES, XCHACHA20POLY1305_TAG_BYTES, } from './constants.js';
+import { FORMAT_VERSION, XWING_PRIVATE_KEY_BYTES, XCHACHA20POLY1305_NONCE_BYTES, XCHACHA20POLY1305_TAG_BYTES, } from './constants.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 import { decryptFile, encryptFile } from './envelope.js';
 /**
  * Espace sécurisé du client (spec §3.10) : le client est destinataire des envois de l'avocat. Sa paire de clés
- * (générée par `generateAvocatKeyPair`, même primitives) est protégée par un secret de 32 octets issu de sa
+ * (générée par `generateAvocatKeyPair`, même X-Wing) est protégée par un secret de 32 octets issu de sa
  * passkey (extension WebAuthn PRF) — jamais par un mot de passe.
  */
 const SECRET_BYTES = 32;
 /** Contexte `crypto_kdf` (8 caractères exactement) : sépare cet usage de tout autre dérivé du même secret. */
 const WRAP_KDF_CONTEXT = 'lxdcclnt';
 const WRAP_KDF_SUBKEY_ID = 1;
-const PLAINTEXT_LENGTH = X25519_PRIVATE_KEY_BYTES + MLKEM768_SECRET_KEY_BYTES;
+const PLAINTEXT_LENGTH = XWING_PRIVATE_KEY_BYTES;
 const SEALED_HEADER_LENGTH = 1 + XCHACHA20POLY1305_NONCE_BYTES;
 export const SEALED_PRIVATE_KEYS_LENGTH = SEALED_HEADER_LENGTH + PLAINTEXT_LENGTH + XCHACHA20POLY1305_TAG_BYTES;
 async function wrapKey(secret) {
@@ -23,14 +23,15 @@ async function wrapKey(secret) {
 }
 /**
  * Chiffre les clés privées du client avec le secret issu de sa passkey. Format :
- * `[version(1)] [nonce(24)] [x25519 ‖ ml-kem + tag(16)]`. Seul ce blob est conservé par le serveur.
+ * `[version(1)] [nonce(24)] [graine X-Wing(32) + tag(16)]`. Seul ce blob est conservé par le serveur.
  */
 export async function sealPrivateKeys(keys, secret) {
     const sodium = await getSodium();
     const key = await wrapKey(secret);
-    const plaintext = new Uint8Array(PLAINTEXT_LENGTH);
-    plaintext.set(keys.x25519PrivateKey, 0);
-    plaintext.set(keys.mlkemPrivateKey, X25519_PRIVATE_KEY_BYTES);
+    if (keys.privateKey.length !== PLAINTEXT_LENGTH) {
+        throw new InvalidEnvelopeError(`Clé privée X-Wing invalide : ${PLAINTEXT_LENGTH} octets attendus, ${keys.privateKey.length} reçus.`);
+    }
+    const plaintext = keys.privateKey.slice();
     const nonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);
     const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, null, null, nonce, key);
     sodium.memzero(plaintext);
@@ -61,24 +62,18 @@ export async function openPrivateKeys(sealed, secret) {
     finally {
         sodium.memzero(key);
     }
-    const keys = {
-        x25519PrivateKey: plaintext.slice(0, X25519_PRIVATE_KEY_BYTES),
-        mlkemPrivateKey: plaintext.slice(X25519_PRIVATE_KEY_BYTES),
-    };
+    const keys = { privateKey: plaintext.slice() };
     sodium.memzero(plaintext);
     return keys;
 }
 /**
- * Empreinte courte des clés publiques d'un destinataire (BLAKE2b-128 des deux clés, 8 groupes de
+ * Empreinte courte de la clé publique d'un destinataire (BLAKE2b-128 de la clé X-Wing, 8 groupes de
  * 4 caractères hexadécimaux) : affichée au client à l'activation et à l'avocat, qui peut la faire confirmer par
  * téléphone — détecte la substitution d'une clé publique par le serveur.
  */
 export async function fingerprintPublicKeys(keys) {
     const sodium = await getSodium();
-    const all = new Uint8Array(keys.x25519PublicKey.length + keys.mlkemPublicKey.length);
-    all.set(keys.x25519PublicKey, 0);
-    all.set(keys.mlkemPublicKey, keys.x25519PublicKey.length);
-    const digest = sodium.crypto_generichash(16, all, null);
+    const digest = sodium.crypto_generichash(16, keys.publicKey, null);
     const hex = sodium.to_hex(digest);
     return (hex.match(/.{4}/g) ?? []).join(' ');
 }

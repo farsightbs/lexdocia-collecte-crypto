@@ -1,8 +1,7 @@
 import { getSodiumSumo } from './sodium-sumo.js';
 import {
   FORMAT_VERSION,
-  MLKEM768_SECRET_KEY_BYTES,
-  X25519_PRIVATE_KEY_BYTES,
+  XWING_PRIVATE_KEY_BYTES,
   XCHACHA20POLY1305_NONCE_BYTES,
 } from './constants.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
@@ -25,8 +24,8 @@ export interface RecoveryFile {
   ciphertext: string;
 }
 
-/** Champs en clair, dans le même ordre que dans le fichier de recovery. */
-const PLAINTEXT_LENGTH = X25519_PRIVATE_KEY_BYTES + MLKEM768_SECRET_KEY_BYTES;
+/** Contenu en clair : la graine X-Wing de 32 octets. */
+const PLAINTEXT_LENGTH = XWING_PRIVATE_KEY_BYTES;
 
 interface Argon2idLimits {
   opslimit: number;
@@ -75,9 +74,12 @@ export async function exportRecoveryFile(
   const sodium = await getSodiumSumo();
   const resolvedLimits = limits ?? (await defaultLimits());
 
-  const plaintext = new Uint8Array(PLAINTEXT_LENGTH);
-  plaintext.set(keys.x25519PrivateKey, 0);
-  plaintext.set(keys.mlkemPrivateKey, X25519_PRIVATE_KEY_BYTES);
+  if (keys.privateKey.length !== PLAINTEXT_LENGTH) {
+    throw new InvalidEnvelopeError(
+      `Clé privée X-Wing invalide : ${PLAINTEXT_LENGTH} octets attendus, ${keys.privateKey.length} reçus.`,
+    );
+  }
+  const plaintext = keys.privateKey.slice();
 
   const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
   const key = await deriveKey(password, salt, resolvedLimits);
@@ -179,9 +181,8 @@ export async function importRecoveryFile(
     );
   }
 
-  const x25519PrivateKey = plaintext.slice(0, X25519_PRIVATE_KEY_BYTES);
-  const mlkemPrivateKey = plaintext.slice(X25519_PRIVATE_KEY_BYTES);
+  const privateKey = plaintext.slice();
   sodium.memzero(plaintext);
 
-  return { x25519PrivateKey, mlkemPrivateKey };
+  return { privateKey };
 }

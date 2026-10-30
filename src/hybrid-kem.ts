@@ -1,87 +1,46 @@
-import { ml_kem768 } from '@noble/post-quantum/ml-kem.js';
-import { getSodium } from './sodium.js';
-import { HYBRID_KDF_CONTEXT, X25519_SHARED_SECRET_BYTES } from './constants.js';
-import type { RecipientPrivateKeys, RecipientPublicKeys } from './types.js';
-import { DecryptionError } from './errors.js';
+import { ml_kem768_x25519 as xwing } from '@noble/post-quantum/hybrid.js';
+import {
+  XWING_CIPHERTEXT_BYTES,
+  XWING_PRIVATE_KEY_BYTES,
+  XWING_PUBLIC_KEY_BYTES,
+} from './constants.js';
+import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 
 /**
- * Combine les deux secrets partagés (classique + post-quantique) en une seule clé
- * symétrique via BLAKE2b (concatenation KDF, cf. NIST SP 800-56C rev2). La sécurité du
- * résultat repose sur celle du plus fort des deux secrets d'entrée : si l'un des deux
- * algorithmes est cassé, l'autre continue de protéger le secret combiné.
+ * KEM hybride X-Wing (X25519 + ML-KEM-768), tel que spécifié par draft-connolly-cfrg-xwing-kem :
+ * le combineur (SHA3-256 sur les deux secrets, le ciphertext X25519 et la clé publique X25519)
+ * est celui de la librairie, testé contre les vecteurs du draft — rien n'est recomposé ici.
  */
-async function combineSharedSecrets(
-  x25519Shared: Uint8Array,
-  mlkemShared: Uint8Array,
-): Promise<Uint8Array> {
-  const sodium = await getSodium();
-  const combined = new Uint8Array(x25519Shared.length + mlkemShared.length);
-  combined.set(x25519Shared, 0);
-  combined.set(mlkemShared, x25519Shared.length);
-  const kek = sodium.crypto_generichash(32, combined, HYBRID_KDF_CONTEXT);
-  sodium.memzero(combined);
-  return kek;
-}
 
-export interface HybridEncapsulation {
+export interface XWingEncapsulation {
   sharedSecret: Uint8Array;
-  ephemeralX25519PublicKey: Uint8Array;
-  mlkemCiphertext: Uint8Array;
+  cipherText: Uint8Array;
 }
 
-/** Chiffrement (portail) : encapsule un secret partagé pour les clés publiques du destinataire. */
-export async function hybridEncapsulate(
-  recipient: RecipientPublicKeys,
-): Promise<HybridEncapsulation> {
-  const sodium = await getSodium();
-  const ephemeral = sodium.crypto_box_keypair();
-  const x25519Shared = sodium.crypto_scalarmult(ephemeral.privateKey, recipient.x25519PublicKey);
-  const { cipherText: mlkemCiphertext, sharedSecret: mlkemShared } = ml_kem768.encapsulate(
-    recipient.mlkemPublicKey,
-  );
-
-  const sharedSecret = await combineSharedSecrets(x25519Shared, mlkemShared);
-  sodium.memzero(ephemeral.privateKey);
-  sodium.memzero(x25519Shared);
-  sodium.memzero(mlkemShared);
-
-  return { sharedSecret, ephemeralX25519PublicKey: ephemeral.publicKey, mlkemCiphertext };
+/** Chiffrement (portail) : encapsule un secret partagé pour la clé publique du destinataire. */
+export function xwingEncapsulate(publicKey: Uint8Array): XWingEncapsulation {
+  if (publicKey.length !== XWING_PUBLIC_KEY_BYTES) {
+    throw new InvalidEnvelopeError(
+      `Clé publique X-Wing invalide : ${XWING_PUBLIC_KEY_BYTES} octets attendus, ${publicKey.length} reçus.`,
+    );
+  }
+  const { cipherText, sharedSecret } = xwing.encapsulate(publicKey);
+  return { sharedSecret, cipherText };
 }
 
-/** Déchiffrement (PieceMaster) : reconstitue le secret partagé à partir des clés privées. */
-export async function hybridDecapsulate(
-  recipient: RecipientPrivateKeys,
-  ephemeralX25519PublicKey: Uint8Array,
-  mlkemCiphertext: Uint8Array,
-): Promise<Uint8Array> {
-  const sodium = await getSodium();
-  if (ephemeralX25519PublicKey.length !== X25519_SHARED_SECRET_BYTES) {
-    throw new DecryptionError('Clé publique X25519 éphémère de taille invalide.');
-  }
-
-  let x25519Shared: Uint8Array;
-  try {
-    x25519Shared = sodium.crypto_scalarmult(
-      recipient.x25519PrivateKey,
-      ephemeralX25519PublicKey,
-    );
-  } catch {
-    // libsodium refuse les points d'ordre faible (résultat nul) : clé éphémère forgée ou corrompue.
-    throw new DecryptionError('Clé publique X25519 éphémère invalide.');
-  }
-
-  let mlkemShared: Uint8Array;
-  try {
-    mlkemShared = ml_kem768.decapsulate(mlkemCiphertext, recipient.mlkemPrivateKey);
-  } catch {
-    sodium.memzero(x25519Shared);
-    throw new DecryptionError(
-      'Décapsulation ML-KEM invalide : ciphertext corrompu ou mauvaise clé.',
+/** Déchiffrement (PieceMaster) : reconstitue le secret partagé à partir de la clé privée. */
+export function xwingDecapsulate(cipherText: Uint8Array, privateKey: Uint8Array): Uint8Array {
+  if (privateKey.length !== XWING_PRIVATE_KEY_BYTES) {
+    throw new InvalidEnvelopeError(
+      `Clé privée X-Wing invalide : ${XWING_PRIVATE_KEY_BYTES} octets attendus, ${privateKey.length} reçus.`,
     );
   }
-
-  const sharedSecret = await combineSharedSecrets(x25519Shared, mlkemShared);
-  sodium.memzero(x25519Shared);
-  sodium.memzero(mlkemShared);
-  return sharedSecret;
+  if (cipherText.length !== XWING_CIPHERTEXT_BYTES) {
+    throw new DecryptionError('Ciphertext X-Wing de taille invalide.');
+  }
+  try {
+    return xwing.decapsulate(cipherText, privateKey);
+  } catch {
+    throw new DecryptionError('Décapsulation X-Wing invalide : ciphertext corrompu ou mauvaise clé.');
+  }
 }

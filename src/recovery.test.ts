@@ -6,10 +6,7 @@ import { DecryptionError, InvalidEnvelopeError } from './errors.js';
 import type { AvocatKeyPair, RecipientPrivateKeys } from './types.js';
 
 function toPrivateKeys(keyPair: AvocatKeyPair): RecipientPrivateKeys {
-  return {
-    x25519PrivateKey: keyPair.x25519.privateKey,
-    mlkemPrivateKey: keyPair.mlkem.privateKey,
-  };
+  return { privateKey: keyPair.privateKey };
 }
 
 /** OPSLIMIT/MEMLIMIT minimaux valides pour libsodium — évite le coût "sensitive" en tests. */
@@ -23,8 +20,7 @@ describe('exportRecoveryFile / importRecoveryFile', () => {
     const file = await exportRecoveryFile(keys, 'mot-de-passe-avocat', FAST_LIMITS);
     const restored = await importRecoveryFile(file, 'mot-de-passe-avocat');
 
-    expect(restored.x25519PrivateKey).toEqual(keys.x25519PrivateKey);
-    expect(restored.mlkemPrivateKey).toEqual(keys.mlkemPrivateKey);
+    expect(restored.privateKey).toEqual(keys.privateKey);
   });
 
   it('rejette un mauvais mot de passe', async () => {
