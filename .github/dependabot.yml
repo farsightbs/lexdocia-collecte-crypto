@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Primitives cryptographiques : toute montée de version passe par une revue manuelle
+      # (format, audit, compatibilité), jamais via Dependabot.
+      - dependency-name: "@noble/post-quantum"
+      - dependency-name: "libsodium-wrappers"
+      - dependency-name: "libsodium-wrappers-sumo"
     groups:
       dev-tooling:
         dependency-type: development
