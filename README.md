@@ -1,5 +1,8 @@
 # @lexdocia/collecte-crypto
 
+[![CI](https://github.com/farsightbs/lexdocia-collecte-crypto/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/farsightbs/lexdocia-collecte-crypto/actions/workflows/ci.yml)
+[![Sécurité](https://github.com/farsightbs/lexdocia-collecte-crypto/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/farsightbs/lexdocia-collecte-crypto/actions/workflows/security.yml)
+
 Primitives de chiffrement hybride (KEM X-Wing = X25519 + ML-KEM-768, puis XChaCha20-Poly1305) partagées entre
 deux repos séparés :
 
