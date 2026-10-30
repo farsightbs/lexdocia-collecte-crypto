@@ -12,6 +12,17 @@ function toPrivateKeys(keyPair: AvocatKeyPair): RecipientPrivateKeys {
 /** OPSLIMIT/MEMLIMIT minimaux valides pour libsodium — évite le coût "sensitive" en tests. */
 const FAST_LIMITS = { opslimit: 1, memlimit: 8192 };
 
+describe('exportRecoveryFile : clé privée invalide', () => {
+  it('refuse une clé privée de taille invalide', async () => {
+    await expect(
+      exportRecoveryFile({ privateKey: new Uint8Array(31) }, 'mot-de-passe-avocat', {
+        opslimit: 1,
+        memlimit: 8192,
+      }),
+    ).rejects.toBeInstanceOf(InvalidEnvelopeError);
+  });
+});
+
 describe('exportRecoveryFile / importRecoveryFile', () => {
   it('fait un aller-retour fidèle sur les clés privées avec le bon mot de passe', async () => {
     const avocat = await generateAvocatKeyPair();

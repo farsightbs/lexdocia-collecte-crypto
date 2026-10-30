@@ -53,13 +53,13 @@ export async function sealPrivateKeys(
   secret: Uint8Array,
 ): Promise<Uint8Array> {
   const sodium = await getSodium();
-  const key = await wrapKey(secret);
-
   if (keys.privateKey.length !== PLAINTEXT_LENGTH) {
     throw new InvalidEnvelopeError(
       `Clé privée X-Wing invalide : ${PLAINTEXT_LENGTH} octets attendus, ${keys.privateKey.length} reçus.`,
     );
   }
+  const key = await wrapKey(secret);
+
   const plaintext = keys.privateKey.slice();
 
   const nonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);

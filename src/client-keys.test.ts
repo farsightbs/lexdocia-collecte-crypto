@@ -49,6 +49,12 @@ describe('sealPrivateKeys / openPrivateKeys', () => {
     );
   });
 
+  it('refuse une clé privée de taille invalide', async () => {
+    await expect(
+      sealPrivateKeys({ privateKey: new Uint8Array(31) }, secret(7)),
+    ).rejects.toBeInstanceOf(InvalidEnvelopeError);
+  });
+
   it('refuse un secret de taille invalide', async () => {
     const { priv } = await nouvelleCle();
     await expect(sealPrivateKeys(priv, new Uint8Array(16))).rejects.toBeInstanceOf(

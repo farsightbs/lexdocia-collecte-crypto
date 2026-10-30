@@ -27,10 +27,10 @@ async function wrapKey(secret) {
  */
 export async function sealPrivateKeys(keys, secret) {
     const sodium = await getSodium();
-    const key = await wrapKey(secret);
     if (keys.privateKey.length !== PLAINTEXT_LENGTH) {
         throw new InvalidEnvelopeError(`Clé privée X-Wing invalide : ${PLAINTEXT_LENGTH} octets attendus, ${keys.privateKey.length} reçus.`);
     }
+    const key = await wrapKey(secret);
     const plaintext = keys.privateKey.slice();
     const nonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);
     const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, null, null, nonce, key);
