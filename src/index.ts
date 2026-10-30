@@ -20,8 +20,7 @@ export type {
 export type { RecoveryFile } from './recovery.js';
 export {
   ENCAPSULATED_KEY_LENGTH,
-  MLKEM768_PUBLIC_KEY_BYTES,
-  MLKEM768_SECRET_KEY_BYTES,
-  X25519_PUBLIC_KEY_BYTES,
-  X25519_PRIVATE_KEY_BYTES,
+  XWING_PUBLIC_KEY_BYTES,
+  XWING_PRIVATE_KEY_BYTES,
+  XWING_CIPHERTEXT_BYTES,
 } from './constants.js';

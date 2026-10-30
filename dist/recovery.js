@@ -1,8 +1,8 @@
 import { getSodiumSumo } from './sodium-sumo.js';
-import { FORMAT_VERSION, MLKEM768_SECRET_KEY_BYTES, X25519_PRIVATE_KEY_BYTES, XCHACHA20POLY1305_NONCE_BYTES, } from './constants.js';
+import { FORMAT_VERSION, XWING_PRIVATE_KEY_BYTES, XCHACHA20POLY1305_NONCE_BYTES, } from './constants.js';
 import { DecryptionError, InvalidEnvelopeError } from './errors.js';
-/** Champs en clair, dans le même ordre que dans le fichier de recovery. */
-const PLAINTEXT_LENGTH = X25519_PRIVATE_KEY_BYTES + MLKEM768_SECRET_KEY_BYTES;
+/** Contenu en clair : la graine X-Wing de 32 octets. */
+const PLAINTEXT_LENGTH = XWING_PRIVATE_KEY_BYTES;
 /**
  * OPSLIMIT/MEMLIMIT "sensitive" par défaut : cette clé protège le déchiffrement de tous les
  * documents d'un cabinet, et l'export/import de ce fichier est une opération rare et
@@ -27,9 +27,10 @@ async function deriveKey(password, salt, limits) {
 export async function exportRecoveryFile(keys, password, limits) {
     const sodium = await getSodiumSumo();
     const resolvedLimits = limits ?? (await defaultLimits());
-    const plaintext = new Uint8Array(PLAINTEXT_LENGTH);
-    plaintext.set(keys.x25519PrivateKey, 0);
-    plaintext.set(keys.mlkemPrivateKey, X25519_PRIVATE_KEY_BYTES);
+    if (keys.privateKey.length !== PLAINTEXT_LENGTH) {
+        throw new InvalidEnvelopeError(`Clé privée X-Wing invalide : ${PLAINTEXT_LENGTH} octets attendus, ${keys.privateKey.length} reçus.`);
+    }
+    const plaintext = keys.privateKey.slice();
     const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
     const key = await deriveKey(password, salt, resolvedLimits);
     const nonce = sodium.randombytes_buf(XCHACHA20POLY1305_NONCE_BYTES);
@@ -104,9 +105,8 @@ export async function importRecoveryFile(file, password) {
         sodium.memzero(plaintext);
         throw new InvalidEnvelopeError(`Taille de contenu déchiffré invalide : attendu ${PLAINTEXT_LENGTH} octets, reçu ${plaintext.length}.`);
     }
-    const x25519PrivateKey = plaintext.slice(0, X25519_PRIVATE_KEY_BYTES);
-    const mlkemPrivateKey = plaintext.slice(X25519_PRIVATE_KEY_BYTES);
+    const privateKey = plaintext.slice();
     sodium.memzero(plaintext);
-    return { x25519PrivateKey, mlkemPrivateKey };
+    return { privateKey };
 }
 //# sourceMappingURL=recovery.js.map

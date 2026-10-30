@@ -2,20 +2,18 @@ export interface KeyPairBytes {
     publicKey: Uint8Array;
     privateKey: Uint8Array;
 }
-/** Paire de clés générée localement à l'activation du module Collecte (spec §3.2). */
-export interface AvocatKeyPair {
-    x25519: KeyPairBytes;
-    mlkem: KeyPairBytes;
-}
-/** Clés publiques de l'avocat, telles que récupérées par le portail avant chiffrement. */
+/**
+ * Paire de clés X-Wing générée localement à l'activation du module Collecte (spec §3.2).
+ * `publicKey` : 1216 octets ; `privateKey` : graine de 32 octets (jamais transmise).
+ */
+export type AvocatKeyPair = KeyPairBytes;
+/** Clé publique du destinataire, telle que récupérée par le portail avant chiffrement. */
 export interface RecipientPublicKeys {
-    x25519PublicKey: Uint8Array;
-    mlkemPublicKey: Uint8Array;
+    publicKey: Uint8Array;
 }
-/** Clés privées de l'avocat, jamais transmises — utilisées localement dans PieceMaster. */
+/** Clé privée du destinataire, jamais transmise — utilisée localement dans PieceMaster. */
 export interface RecipientPrivateKeys {
-    x25519PrivateKey: Uint8Array;
-    mlkemPrivateKey: Uint8Array;
+    privateKey: Uint8Array;
 }
 /**
  * Résultat du chiffrement d'un fichier (spec §3.3). Les deux champs sont stockés/transportés

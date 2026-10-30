@@ -1,0 +1,270 @@
+{
+  "@babel/helper-string-parser": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@babel/helper-validator-identifier": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@babel/parser": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@babel/types": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@bcoe/v8-coverage": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@jridgewell/resolve-uri": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@jridgewell/sourcemap-codec": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@jridgewell/trace-mapping": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@noble/ciphers": {
+    "license": "MIT",
+    "prod": true
+  },
+  "@noble/curves": {
+    "license": "MIT",
+    "prod": true
+  },
+  "@noble/hashes": {
+    "license": "MIT",
+    "prod": true
+  },
+  "@noble/post-quantum": {
+    "license": "MIT",
+    "prod": true
+  },
+  "@oxc-project/types": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@oxlint/binding": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@rolldown/binding": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@rolldown/pluginutils": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@types/chai": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@types/deep-eql": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@types/estree": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@typescript/typescript": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-aix-ppc64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-netbsd-arm64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-netbsd-x64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-openbsd-arm64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-openbsd-x64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@typescript/typescript-sunos-x64": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "@vitest/coverage-v8": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@vitest/istanbul-lib-coverage": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@vitest/istanbul-lib-report": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@vitest/mocker": {
+    "license": "MIT",
+    "prod": false
+  },
+  "@vitest/spy": {
+    "license": "MIT",
+    "prod": false
+  },
+  "assertion-error": {
+    "license": "MIT",
+    "prod": false
+  },
+  "ast-v8-to-istanbul": {
+    "license": "MIT",
+    "prod": false
+  },
+  "chai": {
+    "license": "MIT",
+    "prod": false
+  },
+  "detect-libc": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "es-module-lexer": {
+    "license": "MIT",
+    "prod": false
+  },
+  "estree-walker": {
+    "license": "MIT",
+    "prod": false
+  },
+  "expect-type": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "fast-check": {
+    "license": "MIT",
+    "prod": false
+  },
+  "fdir": {
+    "license": "MIT",
+    "prod": false
+  },
+  "fsevents": {
+    "license": "MIT",
+    "prod": false
+  },
+  "js-tokens": {
+    "license": "MIT",
+    "prod": false
+  },
+  "libsodium": {
+    "license": "ISC",
+    "prod": true
+  },
+  "libsodium-sumo": {
+    "license": "ISC",
+    "prod": true
+  },
+  "libsodium-wrappers": {
+    "license": "ISC",
+    "prod": true
+  },
+  "libsodium-wrappers-sumo": {
+    "license": "ISC",
+    "prod": true
+  },
+  "lightningcss": {
+    "license": "MPL-2.0",
+    "prod": false
+  },
+  "magic-string": {
+    "license": "MIT",
+    "prod": false
+  },
+  "magicast": {
+    "license": "MIT",
+    "prod": false
+  },
+  "nanoid": {
+    "license": "MIT",
+    "prod": false
+  },
+  "obug": {
+    "license": "MIT",
+    "prod": false
+  },
+  "oxlint": {
+    "license": "MIT",
+    "prod": false
+  },
+  "picocolors": {
+    "license": "ISC",
+    "prod": false
+  },
+  "picomatch": {
+    "license": "MIT",
+    "prod": false
+  },
+  "postcss": {
+    "license": "MIT",
+    "prod": false
+  },
+  "pure-rand": {
+    "license": "MIT",
+    "prod": false
+  },
+  "rolldown": {
+    "license": "MIT",
+    "prod": false
+  },
+  "source-map-js": {
+    "license": "BSD-3-Clause",
+    "prod": false
+  },
+  "std-env": {
+    "license": "MIT",
+    "prod": false
+  },
+  "tinybench": {
+    "license": "MIT",
+    "prod": false
+  },
+  "tinyexec": {
+    "license": "MIT",
+    "prod": false
+  },
+  "tinyglobby": {
+    "license": "MIT",
+    "prod": false
+  },
+  "tinyrainbow": {
+    "license": "MIT",
+    "prod": false
+  },
+  "typescript": {
+    "license": "Apache-2.0",
+    "prod": false
+  },
+  "vite": {
+    "license": "MIT",
+    "prod": false
+  },
+  "vitest": {
+    "license": "MIT",
+    "prod": false
+  },
+  "why-is-node-running": {
+    "license": "MIT",
+    "prod": false
+  }
+}

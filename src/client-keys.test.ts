@@ -17,8 +17,8 @@ const secret = (octet: number) => new Uint8Array(32).fill(octet);
 async function nouvelleCle() {
   const kp = await generateAvocatKeyPair();
   return {
-    pub: { x25519PublicKey: kp.x25519.publicKey, mlkemPublicKey: kp.mlkem.publicKey },
-    priv: { x25519PrivateKey: kp.x25519.privateKey, mlkemPrivateKey: kp.mlkem.privateKey },
+    pub: { publicKey: kp.publicKey },
+    priv: { privateKey: kp.privateKey },
   };
 }
 
@@ -29,8 +29,7 @@ describe('sealPrivateKeys / openPrivateKeys', () => {
     expect(sealed.length).toBe(SEALED_PRIVATE_KEYS_LENGTH);
 
     const ouvert = await openPrivateKeys(sealed, secret(7));
-    expect(ouvert.x25519PrivateKey).toEqual(priv.x25519PrivateKey);
-    expect(ouvert.mlkemPrivateKey).toEqual(priv.mlkemPrivateKey);
+    expect(ouvert.privateKey).toEqual(priv.privateKey);
   });
 
   it("refuse un autre secret (autre passkey)", async () => {
@@ -43,11 +42,17 @@ describe('sealPrivateKeys / openPrivateKeys', () => {
     const { priv } = await nouvelleCle();
     const sealed = await sealPrivateKeys(priv, secret(7));
     const altere = sealed.slice();
-    altere[100] = (altere[100] ?? 0) ^ 0xff;
+    altere[40] = (altere[40] ?? 0) ^ 0xff;
     await expect(openPrivateKeys(altere, secret(7))).rejects.toBeInstanceOf(DecryptionError);
     await expect(openPrivateKeys(sealed.slice(0, 50), secret(7))).rejects.toBeInstanceOf(
       InvalidEnvelopeError,
     );
+  });
+
+  it('refuse une clé privée de taille invalide', async () => {
+    await expect(
+      sealPrivateKeys({ privateKey: new Uint8Array(31) }, secret(7)),
+    ).rejects.toBeInstanceOf(InvalidEnvelopeError);
   });
 
   it('refuse un secret de taille invalide', async () => {
@@ -70,7 +75,7 @@ describe('sealPrivateKeys / openPrivateKeys', () => {
   it('refuse un blob altéré dans le nonce, au début, au milieu et dans le tag', async () => {
     const { priv } = await nouvelleCle();
     const sealed = await sealPrivateKeys(priv, secret(7));
-    const positions = [1, XCHACHA20POLY1305_NONCE_BYTES + 1, 1000, sealed.length - 1];
+    const positions = [1, XCHACHA20POLY1305_NONCE_BYTES + 1, 40, sealed.length - 1];
     for (const position of positions) {
       const altere = sealed.slice();
       altere[position] = (altere[position] ?? 0) ^ 0x01;

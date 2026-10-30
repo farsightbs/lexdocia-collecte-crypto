@@ -6,7 +6,7 @@ on:
   pull_request:
   schedule:
     # Chaque lundi 06:00 UTC : une faille publiée sur une dépendance crypto doit remonter même sans commit.
-    - cron: '0 6 * * 1'
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -27,6 +27,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
+
+  licences:
+    name: Licences des dépendances (politique, dérive, inventaire)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/check-licenses.mjs
 
   codeql:
     name: CodeQL (JavaScript/TypeScript)
