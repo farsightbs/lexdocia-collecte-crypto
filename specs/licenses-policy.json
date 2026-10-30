@@ -1,0 +1,20 @@
+{
+  "allowed": [
+    "MIT",
+    "ISC",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "CC0-1.0",
+    "BlueOak-1.0.0",
+    "Unlicense"
+  ],
+  "deniedPattern": "(^|[^L])GPL|AGPL|SSPL|BUSL|Commons-Clause|-NC|Elastic|Proprietary",
+  "reviewed": {
+    "lightningcss": {
+      "license": "MPL-2.0",
+      "reason": "Dev-only (vitest/vite toolchain). File-level copyleft, unmodified, never shipped in dist/ or consumed by dependents."
+    }
+  }
+}
