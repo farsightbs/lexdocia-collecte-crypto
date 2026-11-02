@@ -4,5 +4,7 @@ title = "lexdocia-collecte-crypto"
 useDefault = true
 
 [allowlist]
-description = "Clés de test uniquement, sans valeur : vecteurs figés de compatibilité du format v1 et vecteurs officiels NIST/RFC."
+description = "Clés de test uniquement, sans valeur : vecteurs figés de compatibilité du format v1 et vecteurs officiels NIST/RFC. Faux positif : référence à la clé privée générée à l'exécution par libsodium (keys.ts / dist/keys.js), pas une valeur littérale."
 paths = ['''src/compat\.test\.ts''', '''src/kat\.test\.ts''']
+regexTarget = "line"
+regexes = ['''privateKey: x25519\.privateKey''']
